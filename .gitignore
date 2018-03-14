@@ -1,0 +1,9 @@
+﻿# ignore the settings folder and files for VSCode
+.vscode/*
+
+# ignore the settings folder and files for Visual Studio
+.vs/*
+
+# Local constant file
+tests/constants.local.ps1
+
