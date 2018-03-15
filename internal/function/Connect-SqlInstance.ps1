@@ -51,68 +51,6 @@ function Connect-SqlInstance {
       [switch]$NonPooled
   )
 
-  #region Utility functions
-  function Invoke-TEPPCacheUpdate {
-      [CmdletBinding()]
-      param (
-          [System.Management.Automation.ScriptBlock]
-          $ScriptBlock
-      )
-
-      try {
-          [ScriptBlock]::Create($scriptBlock).Invoke()
-      }
-      catch {
-          # If the SQL Server version doesn't support the feature, we ignore it and silently continue
-          if ($_.Exception.InnerException.InnerException.GetType().FullName -eq "Microsoft.SqlServer.Management.Sdk.Sfc.InvalidVersionEnumeratorException") {
-              return
-          }
-
-          if ($ENV:APPVEYOR_BUILD_FOLDER -or ([Sqlcollaborative.Dbatools.dbaSystem.DebugHost]::DeveloperMode)) { throw }
-          else {
-              Write-Message -Level Warning -Message "Failed TEPP Caching: $($scriptBlock.ToString() | Select-String '"(.*?)"' | ForEach-Object { $_.Matches[0].Groups[1].Value })" -ErrorRecord $_ 3>$null
-          }
-      }
-  }
-  #endregion Utility functions
-
-  #region Ensure Credential integrity
-  <#
-  Usually, the parameter type should have been not object but off the PSCredential type.
-  When binding null to a PSCredential type parameter on PS3-4, it'd then show a prompt, asking for username and password.
-
-  In order to avoid that and having to refactor lots of functions (and to avoid making regular scripts harder to read), we created this workaround.
-  #>
-  if ($SqlCredential) {
-      if ($SqlCredential.GetType() -ne [System.Management.Automation.PSCredential]) {
-          throw "The credential parameter was of a non-supported type! Only specify PSCredentials such as generated from Get-Credential. Input was of type $($SqlCredential.GetType().FullName)"
-      }
-  }
-  #endregion Ensure Credential integrity
-
-  #region Safely convert input into instance parameters
-  <#
-  This is a bit ugly, but:
-  In some cases functions would directly pass their own input through when the parameter on the calling function was typed as [object[]].
-  This would break the base parameter class, as it'd automatically be an array and the parameterclass is not designed to handle arrays (Shouldn't have to).
-
-  Note: Multiple servers in one call were never supported, those old functions were liable to break anyway and should be fixed soonest.
-  #>
-  if ($SqlInstance.GetType() -eq [Sqlcollaborative.Dbatools.Parameter.DbaInstanceParameter]) {
-      $ConvertedSqlInstance = $SqlInstance
-      if ($ConvertedSqlInstance.Type -like "SqlConnection") {
-          $ConvertedSqlInstance = New-Object Microsoft.SqlServer.Management.Smo.Server($ConvertedSqlInstance.InputObject)
-      }
-  }
-  else {
-      $ConvertedSqlInstance = ($SqlInstance | Select-Object -First 1)
-
-      if ($SqlInstance.Count -gt 1) {
-          Write-Message -Level Warning -EnableException $true -Message "More than on server was specified when calling Connect-SqlInstance from $((Get-PSCallStack)[1].Command)"
-      }
-  }
-  #endregion Safely convert input into instance parameters
-
   #region Input Object was a server object
   if ($ConvertedSqlInstance.InputObject.GetType() -eq [Microsoft.SqlServer.Management.Smo.Server]) {
       $server = $ConvertedSqlInstance.InputObject
