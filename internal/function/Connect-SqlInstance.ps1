@@ -39,8 +39,6 @@ function Connect-SqlInstance {
         Connect to the Server sql2014 with native credentials.
   #>
   [CmdletBinding()]
-  [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidDefaultValueSwitchParameter", "")]
-  [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingEmptyCatchBlock", "")]
   param (
       [Parameter(Mandatory = $true)][object]$SqlInstance,
       [object]$SqlCredential,
@@ -50,6 +48,15 @@ function Connect-SqlInstance {
       [switch]$AzureUnsupported,
       [switch]$NonPooled
   )
+  function Initialize-SqlServerObject {
+    # Take in random data, return basic object
+  }
+
+  if ($SqlCredential) {
+      if ($SqlCredential.GetType() -ne [System.Management.Automation.PSCredential]) {
+          throw "The credential parameter was of a non-supported type! Only specify PSCredentials such as generated from Get-Credential. Input was of type $($SqlCredential.GetType().FullName)"
+      }
+  }
 
   #region Input Object was a server object
   if ($ConvertedSqlInstance.InputObject.GetType() -eq [Microsoft.SqlServer.Management.Smo.Server]) {
@@ -64,43 +71,22 @@ function Connect-SqlInstance {
 
       }
 
-      # Register the connected instance, so that the TEPP updater knows it's been connected to and starts building the cache
-      [Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::SetInstance($ConvertedSqlInstance.FullSmoName.ToLower(), $server.ConnectionContext.Copy(), ($server.ConnectionContext.FixedServerRoles -match "SysAdmin"))
-
-      # Update cache for instance names
-      if ([Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::Cache["sqlinstance"] -notcontains $ConvertedSqlInstance.FullSmoName.ToLower()) {
-          [Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::Cache["sqlinstance"] += $ConvertedSqlInstance.FullSmoName.ToLower()
-      }
-
-      # Update lots of registered stuff
-      if (-not [Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::TeppSyncDisabled) {
-          $FullSmoName = $ConvertedSqlInstance.FullSmoName.ToLower()
-          foreach ($scriptBlock in ([Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::TeppGatherScriptsFast)) {
-              Invoke-TEPPCacheUpdate -ScriptBlock $scriptBlock
-          }
-      }
-      return $server
-  }
-  #endregion Input Object was a server object
-
-  #region Input Object was anything else
-  # This seems a little complex but is required because some connections do TCP,SqlInstance
-  $loadedSmoVersion = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.FullName -like "Microsoft.SqlServer.SMO,*" }
-
-  if ($loadedSmoVersion) {
-      $loadedSmoVersion = $loadedSmoVersion | ForEach-Object {
-          if ($_.Location -match "__") {
-              ((Split-Path (Split-Path $_.Location) -Leaf) -split "__")[0]
-          }
-          else {
-              ((Get-ChildItem -Path $_.Location).VersionInfo.ProductVersion)
-          }
-      }
+  if ($server.ConnectionContext.IsOpen -eq $false) {
+    if ($NonPooled) {
+      $server.ConnectionContext.Connect()
+    }
+    else {
+      $server.ConnectionContext.SqlConnectionObject.Open()
+    }
   }
 
-  $server = New-Object Microsoft.SqlServer.Management.Smo.Server $ConvertedSqlInstance.FullSmoName
-  $server.ConnectionContext.ApplicationName = "sqlshellPowerShell module - dbatools.io"
-  if ($ConvertedSqlInstance.IsConnectionString) { $server.ConnectionContext.ConnectionString = $ConvertedSqlInstance.InputObject }
+  $server = New-Object Microsoft.SqlServer.Management.Smo.Server $server
+  # TODO: hardcoded app name
+  $server.ConnectionContext.ApplicationName = "sqlshell"
+
+  if ($ConvertedSqlInstance.IsConnectionString) {
+    $server.ConnectionContext.ConnectionString = $ConvertedSqlInstance.InputObject
+  }
 
   try {
       $server.ConnectionContext.ConnectTimeout = [Sqlcollaborative.Dbatools.Connection.ConnectionHost]::SqlConnectionTimeout
@@ -203,22 +189,7 @@ function Connect-SqlInstance {
       }
   }
 
-  # Register the connected instance, so that the TEPP updater knows it's been connected to and starts building the cache
-  [Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::SetInstance($ConvertedSqlInstance.FullSmoName.ToLower(), $server.ConnectionContext.Copy(), ($server.ConnectionContext.FixedServerRoles -match "SysAdmin"))
-
   # Update cache for instance names
-  if ([Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::Cache["sqlinstance"] -notcontains $ConvertedSqlInstance.FullSmoName.ToLower()) {
-      [Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::Cache["sqlinstance"] += $ConvertedSqlInstance.FullSmoName.ToLower()
-  }
-
-  # Update lots of registered stuff
-  if (-not [Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::TeppSyncDisabled) {
-      $FullSmoName = $ConvertedSqlInstance.FullSmoName.ToLower()
-      foreach ($scriptBlock in ([Sqlcollaborative.Dbatools.TabExpansion.TabExpansionHost]::TeppGatherScriptsFast)) {
-          Invoke-TEPPCacheUpdate -ScriptBlock $scriptBlock
-      }
-  }
-
   return $server
   #endregion Input Object was anything else
 }

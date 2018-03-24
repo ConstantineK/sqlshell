@@ -163,65 +163,71 @@ function Connect-Instance {
 #>
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [Alias("ServerInstance", "SqlServer")]
-        [DbaInstanceParameter[]]$SqlInstance,
-        [Alias("SqlCredential")]
-        [PSCredential]$Credential,
-        [object[]]$Database,
-        [string]$AccessToken,
-        [ValidateSet('ReadOnly', 'ReadWrite')]
-        [string]$ApplicationIntent,
-        [string]$BatchSeparator,
-        [string]$ClientName = "sqlshell",
-        [int]$ConnectTimeout = 20,
-        [switch]$EncryptConnection,
-        [string]$FailoverPartner,
-        [switch]$IsActiveDirectoryUniversalAuth,
-        [int]$LockTimeout,
-        [int]$MaxPoolSize,
-        [int]$MinPoolSize,
-        [switch]$MultipleActiveResultSets,
-        [switch]$MultiSubnetFailover,
-        [ValidateSet('TcpIp', 'NamedPipes', 'Multiprotocol', 'AppleTalk', 'BanyanVines', 'Via', 'SharedMemory', 'NWLinkIpxSpx')]
-        [string]$NetworkProtocol,
-        [switch]$NonPooledConnection,
-        [int]$PacketSize,
-        [int]$PooledConnectionLifetime,
-        [ValidateSet('CaptureSql', 'ExecuteAndCaptureSql', 'ExecuteSql')]
-        [string]$SqlExecutionModes,
-        [int]$StatementTimeout,
-        [switch]$TrustServerCertificate,
-        [string]$WorkstationId,
-        [string]$AppendConnectionString,
-        [switch]$SqlConnectionOnly
+      [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+      [Alias("ServerInstance", "SqlServer")]
+      [DbaInstanceParameter[]]$SqlInstance,
+      [Alias("SqlCredential")]
+      [PSCredential]$Credential,
+      [object[]]$Database,
+      [string]$AccessToken,
+      [ValidateSet('ReadOnly', 'ReadWrite')]
+      [string]$ApplicationIntent,
+      [string]$BatchSeparator,
+      [string]$ClientName = "sqlshell",
+      [int]$ConnectTimeout = 20,
+      [switch]$EncryptConnection,
+      [string]$FailoverPartner,
+      [switch]$IsActiveDirectoryUniversalAuth,
+      [int]$LockTimeout,
+      [int]$MaxPoolSize,
+      [int]$MinPoolSize,
+      [switch]$MultipleActiveResultSets,
+      [switch]$MultiSubnetFailover,
+      [ValidateSet('TcpIp', 'NamedPipes', 'Multiprotocol', 'AppleTalk', 'BanyanVines', 'Via', 'SharedMemory', 'NWLinkIpxSpx')]
+      [string]$NetworkProtocol,
+      [switch]$NonPooledConnection,
+      [int]$PacketSize,
+      [int]$PooledConnectionLifetime,
+      [ValidateSet('CaptureSql', 'ExecuteAndCaptureSql', 'ExecuteSql')]
+      [string]$SqlExecutionModes,
+      [int]$StatementTimeout,
+      [switch]$TrustServerCertificate,
+      [string]$WorkstationId,
+      [string]$AppendConnectionString,
+      [switch]$SqlConnectionOnly
     )
     begin {
-        Test-Deprecation -DeprecatedOn "1.0.0" -EnableException:$false -Alias Connect-SqlServer
-        Test-Deprecation -DeprecatedOn "1.0.0" -EnableException:$false -Alias Get-Instance
-
-        $loadedSmoVersion = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.Fullname -like "Microsoft.SqlServer.SMO,*" }
-
-        if ($loadedSmoVersion) {
-            $loadedSmoVersion = $loadedSmoVersion | ForEach-Object {
-                if ($_.Location -match "__") {
-                    ((Split-Path (Split-Path $_.Location) -Leaf) -split "__")[0]
-                }
-                else {
-                    ((Get-ChildItem -Path $_.Location).VersionInfo.ProductVersion)
-                }
-            }
+      $loadedSmoVersion = [AppDomain]::CurrentDomain.GetAssemblies() |
+        Where-Object { $_.Fullname -like "Microsoft.SqlServer.SMO,*" } |
+        ForEach-Object {
+          if ($_.Location -match "__") {
+            ((Split-Path (Split-Path $_.Location) -Leaf) -split "__")[0]
+          }
+          else {
+            ((Get-ChildItem -Path $_.Location).VersionInfo.ProductVersion)
+          }
         }
     }
     process {
         foreach ($instance in $SqlInstance) {
+          <#
+            Open the connection baed on instance type.
+            If its supposed to be only a connection object, return that.
+            The "type" being server or connection seems odd, maybe remove, maybe stay
+          #>
             if ($instance.Type -like "Server") {
-                if ($instance.InputObject.ConnectionContext.IsOpen -eq $false) {
-                    $instance.InputObject.ConnectionContext.Connect()
-                }
-                if ($SqlConnectionOnly) { return $instance.InputObject.ConnectionContext.SqlConnectionObject }
-                else { return $instance.InputObject }
+              if ($instance.InputObject.ConnectionContext.IsOpen -eq $false) {
+                $instance.InputObject.ConnectionContext.Connect()
+              }
+
+              if ($SqlConnectionOnly) {
+                return $instance.InputObject.ConnectionContext.SqlConnectionObject
+              }
+              else {
+                return $instance.InputObject
+              }
             }
+
             if ($instance.Type -like "SqlConnection") {
                 $server = New-Object Microsoft.SqlServer.Management.Smo.Server($instance.InputObject)
 
