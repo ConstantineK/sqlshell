@@ -2,24 +2,6 @@
 $Path = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ModulePath = (Get-Item $Path).Parent.FullName
 $ModuleName = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -Replace ".Tests.ps1"
-kDescribe "$ModuleName indentation" -Tag 'syntax' {
-    $AllFiles = Get-ChildItem -Path $ModulePath -File -Recurse  -Filter '*.ps*1'
-
-    foreach ($f in $AllFiles) {
-        $LeadingTabs = Select-String -Path $f -Pattern '^[\t]+'
-        if ($LeadingTabs.Count -gt 0) {
-            It "$f is not indented with tabs (line(s) $($LeadingTabs.LineNumber -join ','))" {
-                $LeadingTabs.Count | Should Be 0
-            }
-        }
-        $TrailingSpaces = Select-String -Path $f -Pattern '([^ \t\r\n])[ \t]+$'
-        if ($TrailingSpaces.Count -gt 0) {
-            It "$f has no trailing spaces (line(s) $($TrailingSpaces.LineNumber -join ','))" {
-                $TrailingSpaces.Count | Should Be 0
-            }
-        }
-    }
-}
 
 Describe "$ModuleName ScriptAnalyzerErrors" -Tag 'syntax' {
     $ScriptAnalyzerErrors = @()
@@ -37,11 +19,11 @@ Describe "Manifest" {
   $Manifest = $null
   It "has a parseable manifest" {
     {
-        $Script:Manifest = Test-ModuleManifest -Path $ManifestPath -ErrorAction Stop -WarningAction SilentlyContinue
+        $Script:Manifest = Test-ModuleManifest -Path $ManifestPath -ErrorAction Stop
     } | Should Not Throw
   }
 
-$Script:Manifest = Test-ModuleManifest -Path $ManifestPath -ErrorAction SilentlyContinue
+$Script:Manifest = Test-ModuleManifest -Path $ManifestPath
     It "has name manifest name which matches the module name" {
         $Script:Manifest.Name | Should Be $ModuleName
     }
