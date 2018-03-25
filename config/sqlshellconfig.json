@@ -1,0 +1,6 @@
+[
+    {
+        "WriteMessageToLog": true, 
+        "DefaultLogLocation": "\\config\\log.txt"
+    }    
+]

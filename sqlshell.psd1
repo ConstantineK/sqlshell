@@ -52,6 +52,7 @@
       ,'Test-PowerPlan'
       ,'Test-Spn'
       ,'Write-DataTable'
+      ,'Invoke-GlobalConfig'
     )
     CmdletsToExport           = '*'
     VariablesToExport         = '*'
