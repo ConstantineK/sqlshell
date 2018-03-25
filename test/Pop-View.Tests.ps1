@@ -22,17 +22,23 @@ Describe "how $CommandName understands and unwraps SQL syntax" {
     # How do we figure out which ScriptDom is loaded?
     # Its looking the version just stops at 12, and that's what everyone has atm if they have this DLL
     # $Version = Get-DLLMajorVersionFromLoadedAssemblies -LibraryLocation "*TransactSql.ScriptDom*"
-    $ExampleCode = "SELECT * FROM sys.objects"
+    $ExampleCode = "
+    SELECT *
+    FROM sys.objects"
     $Stream = New-Object 'System.IO.StringReader'($ExampleCode)
 
-    #"Microsoft.SqlServer.TransactSql.ScriptDom.TSql120Parser"
-    Add-Type -AssemblyName "Microsoft.SqlServer.TransactSql.ScriptDom,Version=12.0.0.0,Culture=neutral,PublicKeyToken=89845dcd8080cc91"
+    # TODO: This should work in the import
+    # Add-Type -AssemblyName "Microsoft.SqlServer.TransactSql.ScriptDom,Version=12.0.0.0,Culture=neutral,PublicKeyToken=89845dcd8080cc91"
     $ParserNameSpace = "Microsoft.SqlServer.TransactSql.ScriptDom.TSql120Parser"
     $Parser = New-Object $ParserNameSpace($true)
     $Errors = $null
     $Fragment = $Parser.Parse($Stream, [ref]$Errors)
 
-    $Fragment | Should not be $null
+    $Fragment
+
+    $ObjectList |
+      Where-Object { $_ -like '*objects*' } |
+      Should not be $null
   }
 
   It "does a depth first search for views and identifies all the relevant objects" {
