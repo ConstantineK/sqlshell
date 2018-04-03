@@ -6,7 +6,7 @@
     CompanyName               = 'sqlshell'
     Copyright                 = '2017 Constantine Kokkinos'
     Description               = "Lightweight SQL Server querying and automation framework"
-    PowerShellVersion         = '6.0'
+    PowerShellVersion         = '5.1'
     FunctionsToExport         = @(
        'Backup-Database'
       ,'Connect-Instance'
@@ -52,6 +52,8 @@
       ,'Test-PowerPlan'
       ,'Test-Spn'
       ,'Write-DataTable'
+      ,'Invoke-GlobalConfig'
+      ,'Get-GlobalConfig'
     )
     CmdletsToExport           = '*'
     VariablesToExport         = '*'
