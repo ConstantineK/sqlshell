@@ -1,6 +1,14 @@
 function Get-GlobalConfig() { 
     [cmdletbinding()]
-    param(
-        $output 
+    param ( 
+
     )
+
+    if($Global:sqlshell){ 
+        return $Global:sqlshell 
+    } else { 
+        Invoke-SqGlobalConfig 
+
+        return $Global:sqlshell 
+    }     
 }
